@@ -1,0 +1,157 @@
+{
+  "info": {
+    "name": "MyNaksh — Personalized AI Context Engine",
+    "description": "Personalized AI Context Engine API.\n\nEndpoints:\n- GET  /health\n- POST /personalize            → { answer, confidence, sourcesUsed }\n- POST /debug/personalization  → engine reasoning (no answer LLM call)\n- POST /alert                  → proactive, tone-safe guidance notification\n\nSet `baseUrl` to your running server (default http://localhost:3100).\nFor multilingual + alert answers, run the server with a real LLM: `LLM_PROVIDER=ollama npm start`.\nSeeded users: user_101 (English, premium), user_ta (Tamil, premium). Any other id → guest.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3100", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+        "description": "Liveness check."
+      },
+      "response": []
+    },
+    {
+      "name": "Personalize",
+      "item": [
+        {
+          "name": "Career (English)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_101\",\n  \"question\": \"Should I change my job?\"\n}" },
+            "url": { "raw": "{{baseUrl}}/personalize", "host": ["{{baseUrl}}"], "path": ["personalize"] },
+            "description": "Full pipeline — English keyword path (no LLM classification call)."
+          },
+          "response": []
+        },
+        {
+          "name": "General (English)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_101\",\n  \"question\": \"What should I focus on this week?\"\n}" },
+            "url": { "raw": "{{baseUrl}}/personalize", "host": ["{{baseUrl}}"], "path": ["personalize"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Tamil script — career (needs real LLM)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_ta\",\n  \"question\": \"நான் என் வேலையை மாற்ற வேண்டுமா?\"\n}" },
+            "url": { "raw": "{{baseUrl}}/personalize", "host": ["{{baseUrl}}"], "path": ["personalize"] },
+            "description": "Tamil question → LLM intent fallback routes to career → answer in Tamil. Run with Ollama."
+          },
+          "response": []
+        },
+        {
+          "name": "Tanglish — career (needs real LLM)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_ta\",\n  \"question\": \"en vela epdi irukum?\"\n}" },
+            "url": { "raw": "{{baseUrl}}/personalize", "host": ["{{baseUrl}}"], "path": ["personalize"] },
+            "description": "Transliterated Tamil (Tanglish) → semantic fallback routes to career."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Debug (reasoning)",
+      "item": [
+        {
+          "name": "English — career",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_101\",\n  \"question\": \"Should I change my job?\"\n}" },
+            "url": { "raw": "{{baseUrl}}/debug/personalization", "host": ["{{baseUrl}}"], "path": ["debug", "personalization"] },
+            "description": "Shows intent, scores, selected/excluded context — no answer generated."
+          },
+          "response": []
+        },
+        {
+          "name": "Tanglish — career (fallback proof)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_ta\",\n  \"question\": \"en vela epdi irukum?\"\n}" },
+            "url": { "raw": "{{baseUrl}}/debug/personalization", "host": ["{{baseUrl}}"], "path": ["debug", "personalization"] },
+            "description": "intentScores all 0 but intent=career → proof the LLM fallback fired. Run with Ollama."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Alert (proactive guidance)",
+      "item": [
+        {
+          "name": "Good news — start of period",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_101\",\n  \"period\": {\n    \"name\": \"Jupiter Mahadasha\",\n    \"start\": \"2026-09-05\",\n    \"end\": \"2026-12-05\",\n    \"sentiment\": \"good\"\n  }\n}" },
+            "url": { "raw": "{{baseUrl}}/alert", "host": ["{{baseUrl}}"], "path": ["alert"] },
+            "description": "Phase auto-detected from today vs start/end. Warm heads-up as the period begins. Run with Ollama."
+          },
+          "response": []
+        },
+        {
+          "name": "Caution — middle (gentle tone)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_101\",\n  \"period\": {\n    \"name\": \"Shani Gochar over Moon\",\n    \"start\": \"2026-07-01\",\n    \"end\": \"2026-11-01\",\n    \"sentiment\": \"caution\"\n  }\n}" },
+            "url": { "raw": "{{baseUrl}}/alert", "host": ["{{baseUrl}}"], "path": ["alert"] },
+            "description": "Caution framed gently, never alarmist, paired with a constructive step."
+          },
+          "response": []
+        },
+        {
+          "name": "Relief — end of period",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_101\",\n  \"period\": {\n    \"name\": \"Difficult Rahu phase\",\n    \"start\": \"2026-06-01\",\n    \"end\": \"2026-09-18\",\n    \"sentiment\": \"relief\"\n  }\n}" },
+            "url": { "raw": "{{baseUrl}}/alert", "host": ["{{baseUrl}}"], "path": ["alert"] },
+            "description": "Gentle closure as the period winds down."
+          },
+          "response": []
+        },
+        {
+          "name": "Good — start (Tamil user)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_ta\",\n  \"period\": {\n    \"name\": \"Guru Mahadasha\",\n    \"start\": \"2026-09-05\",\n    \"end\": \"2026-12-05\",\n    \"sentiment\": \"good\"\n  }\n}" },
+            "url": { "raw": "{{baseUrl}}/alert", "host": ["{{baseUrl}}"], "path": ["alert"] },
+            "description": "Same alert, generated in Tamil from the user's profile language."
+          },
+          "response": []
+        },
+        {
+          "name": "Outside period (nothing to send)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"user_101\",\n  \"period\": {\n    \"name\": \"Past period\",\n    \"start\": \"2025-01-01\",\n    \"end\": \"2025-03-01\",\n    \"sentiment\": \"good\"\n  }\n}" },
+            "url": { "raw": "{{baseUrl}}/alert", "host": ["{{baseUrl}}"], "path": ["alert"] },
+            "description": "Today is outside the window → phase=null, message=null (no notification)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

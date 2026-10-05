@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyNaksh — Personalized AI Context Engine · Live Playground</title>
+<style>
+  :root{
+    --ink:#f4f4f8; --muted:#9aa0b5; --card:#1b1d2e; --bg:#111223;
+    --accent:#7c5cff; --good:#22d3a6; --warn:#ffb020; --bad:#ff6b6b; --line:#2a2d44;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Inter","Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);
+    line-height:1.5;padding:26px 18px;}
+  .wrap{max-width:1000px;margin:0 auto;}
+  h1{font-size:23px;font-weight:700;letter-spacing:-.01em;}
+  h1 .sub{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-top:6px;}
+  h2{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:0 0 12px;font-weight:700;}
+
+  .ask{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+  .ask input[type=text]{flex:1;min-width:240px;padding:13px 15px;font-size:15px;background:var(--card);
+    color:var(--ink);border:1px solid var(--line);border-radius:10px;}
+  .ask input[type=text]::placeholder{color:#6b7091;}
+  .ask .uid{width:120px;flex:0 0 auto;}
+  button{padding:13px 22px;font-size:15px;font-weight:600;border:0;border-radius:10px;
+    background:var(--accent);color:#fff;cursor:pointer;}
+  button:disabled{opacity:.5;cursor:default;}
+  .chips{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;}
+  .chip{font-size:12px;padding:6px 12px;border-radius:20px;background:var(--card);border:1px solid var(--line);
+    color:var(--muted);cursor:pointer;}
+  .chip:hover{border-color:var(--accent);color:var(--ink);}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px;}
+  @media(max-width:800px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;min-height:120px;}
+
+  .kv{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line);}
+  .kv:last-child{border-bottom:0;}
+  .kv b{color:var(--good);font-weight:600;}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+  .tag{font-size:11.5px;padding:3px 10px;border-radius:20px;}
+  .tag.sel{background:rgba(34,211,166,.14);border:1px solid var(--good);color:var(--good);}
+  .tag.exc{background:#20223a;border:1px solid var(--line);color:#6b7091;text-decoration:line-through;}
+  .tag.src{background:rgba(124,92,255,.16);border:1px solid var(--accent);color:#c3b5ff;}
+
+  .score{margin:7px 0;font-size:12px;}
+  .score .top{display:flex;justify-content:space-between;margin-bottom:3px;color:var(--muted);}
+  .track{height:7px;background:#20223a;border-radius:5px;overflow:hidden;}
+  .track > i{display:block;height:100%;background:linear-gradient(90deg,#7c5cff,#22d3a6);border-radius:5px;}
+
+  .answer{font-size:15.5px;line-height:1.6;white-space:pre-wrap;}
+  .badge{display:inline-block;font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:.04em;}
+  .badge.HIGH{background:rgba(34,211,166,.16);color:var(--good);border:1px solid var(--good);}
+  .badge.MEDIUM{background:rgba(255,176,32,.16);color:var(--warn);border:1px solid var(--warn);}
+  .badge.LOW{background:rgba(255,107,107,.16);color:var(--bad);border:1px solid var(--bad);}
+  .muted{color:var(--muted);font-size:13px;}
+  .steps{font-size:11px;color:var(--muted);margin-top:18px;text-align:center;letter-spacing:.02em;}
+  .steps b{color:#c3b5ff;}
+  .err{color:var(--bad);font-size:13px;}
+  footer{margin-top:22px;font-size:11px;color:var(--muted);text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MyNaksh · Personalized AI Context Engine
+    <span class="sub">Watch it reason: detect intent → select <i>only</i> the relevant context → generate a grounded, confidence-scored answer.</span>
+  </h1>
+
+  <div class="ask">
+    <input id="uid" class="uid" type="text" value="user_101" title="user id" />
+    <input id="q" type="text" placeholder="Ask anything — e.g. How will my career go this month?"
+           onkeydown="if(event.key==='Enter')run()" />
+    <button id="go" onclick="run()">Ask</button>
+  </div>
+  <div class="chips" id="samples"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>How the engine thinks · /debug</h2>
+      <div id="think" class="muted">Ask a question to see the engine's reasoning — no LLM, fully explainable.</div>
+    </div>
+    <div class="card">
+      <h2>The grounded answer · /personalize</h2>
+      <div id="answer" class="muted">The final answer, its confidence, and the exact context sources it used.</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    Pipeline: <b>intent</b> → <b>select context</b> → <b>fetch only what's needed</b> → <b>optimized prompt</b> → <b>LLM</b> → <b>confidence = min(coverage, self-assessment)</b>
+  </div>
+  <footer>MyNaksh Context Engine · TypeScript + Fastify · deterministic mock LLM (zero secrets) — swap to Ollama/Anthropic via config.<br>
+    Multilingual intent (e.g. Tamil "en vela epdi irukum?") routes correctly when a real LLM is configured; the mock can't read Tamil, so it falls back to <i>general</i>.</footer>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const SAMPLES = [
+    "How will my career go this month?",   // → career (crisp intent + tight context)
+    "Is this a good time for my relationship?", // → relationship
+    "What about my health this week?",     // → health
+    "Should I invest money now?",          // → finance
+    "Tell me about my day",                // ambiguous → general (pulls everything)
+  ];
+
+  function renderSamples(){
+    $("samples").innerHTML = SAMPLES.map(s =>
+      `<span class="chip" onclick="pick(this)">${s}</span>`).join("");
+  }
+  function pick(el){ $("q").value = el.textContent; run(); }
+
+  function bar(label, val){
+    const pct = Math.round((val || 0) * 100);
+    return `<div class="score"><div class="top"><span>${label}</span><span>${pct}%</span></div>
+      <div class="track"><i style="width:${pct}%"></i></div></div>`;
+  }
+
+  async function post(path, body){
+    const r = await fetch(path, {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
+    });
+    if(!r.ok) throw new Error(path + " → " + r.status);
+    return r.json();
+  }
+
+  async function run(){
+    const userId = $("uid").value.trim() || "user_101";
+    const question = $("q").value.trim();
+    if(!question) return;
+    $("go").disabled = true;
+    $("think").innerHTML = '<span class="muted">Thinking…</span>';
+    $("answer").innerHTML = '<span class="muted">Generating…</span>';
+
+    try{
+      // Reasoning first (fast, no LLM), then the full grounded answer.
+      const dbg = await post("/debug/personalization", { userId, question });
+      const scores = dbg.intentScores || {};
+      const scoreRows = Object.keys(scores).length
+        ? Object.entries(scores).sort((a,b)=>b[1]-a[1]).map(([k,v])=>bar(k, v)).join("")
+        : '<span class="muted">keyword match (no LLM fallback needed)</span>';
+
+      $("think").innerHTML = `
+        <div class="kv"><span>Intent detected</span><b>${dbg.intent}${dbg.ambiguous?" (ambiguous)":""}</b></div>
+        <div class="kv"><span>Language</span><b>${dbg.language}</b></div>
+        <div class="kv"><span>Tone</span><b>${dbg.tone}</b></div>
+        <div class="kv"><span>Max words</span><b>${dbg.maxWords}</b></div>
+        <div style="margin-top:12px"><span class="muted">Context SELECTED (only what this intent needs):</span>
+          <div class="tags">${(dbg.selectedContext||[]).map(k=>`<span class="tag sel">${k}</span>`).join("") || '<span class="muted">—</span>'}</div></div>
+        <div style="margin-top:10px"><span class="muted">Context EXCLUDED (skipped → cheaper prompt):</span>
+          <div class="tags">${(dbg.excludedContext||[]).map(k=>`<span class="tag exc">${k}</span>`).join("") || '<span class="muted">—</span>'}</div></div>
+        <div style="margin-top:12px"><span class="muted">Intent scores:</span>${scoreRows}</div>
+      `;
+
+      const res = await post("/personalize", { userId, question });
+      $("answer").innerHTML = `
+        <div style="margin-bottom:12px"><span class="badge ${res.confidence}">${res.confidence} confidence</span></div>
+        <div class="answer">${(res.answer||"").replace(/</g,"&lt;")}</div>
+        <div style="margin-top:14px"><span class="muted">Sources used (engine-derived, not parsed from the LLM):</span>
+          <div class="tags">${(res.sourcesUsed||[]).map(s=>`<span class="tag src">${s}</span>`).join("") || '<span class="muted">none</span>'}</div></div>
+      `;
+    }catch(e){
+      $("answer").innerHTML = `<span class="err">${e.message}. Is the engine running? (npm start)</span>`;
+      $("think").innerHTML = '';
+    }finally{
+      $("go").disabled = false;
+    }
+  }
+  renderSamples();
+</script>
+</body>
+</html>

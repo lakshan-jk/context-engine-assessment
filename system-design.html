@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MyNaksh Context Engine — System Design</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0d0f16; color: #e6e8ee; padding: 28px; line-height: 1.4; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 22px; }
+  .sub { color: #8b90a0; font-size: 13px; margin-bottom: 22px; }
+  .layer { border: 1px solid #262b3b; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; background: #12151f; }
+  .layer > .lh { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: #6b7280; margin-bottom: 12px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch; }
+  .box { background: #1a1d27; border: 1px solid #2a2e3c; border-radius: 9px; padding: 11px 13px; flex: 1; min-width: 150px; }
+  .box b { font-size: 13.5px; display: block; margin-bottom: 3px; }
+  .box p { font-size: 11.5px; color: #9aa0b0; }
+  .box .file { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: #4f7cff; }
+  .arrow { text-align: center; color: #4f7cff; font-size: 20px; margin: 2px 0; }
+  .edge { border-left: 4px solid #f472b6; }
+  .app  { border-left: 4px solid #34d399; }
+  .port { border-left: 4px solid #fbbf24; }
+  .ext  { border-left: 4px solid #60a5fa; }
+  .infra{ border-left: 4px solid #a78bfa; }
+  .pill { display:inline-block; font-size:10px; padding:1px 7px; border-radius:20px; margin-left:6px;
+          background:#34d39922; color:#34d399; border:1px solid #34d39955; }
+  .pill.new { background:#f472b622; color:#f472b6; border-color:#f472b655; }
+  .scale { background:#141824; border:1px dashed #3a3f52; border-radius:10px; padding:12px 16px; margin-top:16px; font-size:12.5px; color:#c9cdd8; }
+  .scale b { color:#a78bfa; }
+  .scale ul { margin:6px 0 0 18px; } .scale li { margin:3px 0; }
+  .cc { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+  .cc span { font-size:11px; background:#1a1d27; border:1px solid #2a2e3c; border-radius:20px; padding:3px 10px; color:#b6bac7; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:#8b90a0; margin: 4px 0 18px; }
+  .legend i { width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:middle; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MyNaksh — Personalized AI Context Engine · System Design</h1>
+  <div class="sub">Stateless API over a pure engine, two ports (services + LLM), cross-cutting resilience, cache & observability. Green = new features built.</div>
+
+  <div class="legend">
+    <span><i style="background:#f472b6"></i>Edge / API</span>
+    <span><i style="background:#34d399"></i>Application (pure engine)</span>
+    <span><i style="background:#fbbf24"></i>Ports (I/O boundaries)</span>
+    <span><i style="background:#60a5fa"></i>External services</span>
+    <span><i style="background:#a78bfa"></i>Data / Infra</span>
+  </div>
+
+  <!-- CLIENT -->
+  <div class="layer">
+    <div class="lh">Clients</div>
+    <div class="row">
+      <div class="box"><b>Mobile / Web apps</b><p>User asks a question or the scheduler triggers a proactive alert</p></div>
+    </div>
+  </div>
+  <div class="arrow">↓ HTTPS</div>
+
+  <!-- EDGE -->
+  <div class="layer">
+    <div class="lh">Edge / API Gateway</div>
+    <div class="row">
+      <div class="box edge"><b>Load Balancer</b><p>Fans out to N stateless app instances</p></div>
+      <div class="box edge"><b>Rate Limiting <span class="pill">planned</span></b><p>Per-user, tiered — free vs premium (cost + conversion lever)</p></div>
+      <div class="box edge"><b>Auth <span class="pill">planned</span></b><p>JWT / OAuth, tenancy</p></div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+
+  <!-- APP -->
+  <div class="layer">
+    <div class="lh">Application — Fastify (stateless, horizontally scalable)</div>
+    <div class="row">
+      <div class="box edge"><b>Routes + Schema Validation</b><span class="file">routes.ts</span><p>/personalize · /debug · /alert · /health → 400 on bad input</p></div>
+      <div class="box app"><b>Context Engine (orchestrator)</b><span class="file">pipeline.ts</span><p>The 7-step pipeline; depends only on the two ports</p></div>
+    </div>
+    <div style="height:8px"></div>
+    <div class="lh" style="margin-top:6px">Pure engine — no I/O, unit-tested</div>
+    <div class="row">
+      <div class="box app"><b>Intent</b><span class="file">intent.ts</span><p>Keyword scoring; ties → general</p></div>
+      <div class="box app"><b>Intent LLM fallback <span class="pill new">NEW</span></b><span class="file">intent-classifier.ts</span><p>Semantic routing for Tamil/Tanglish; fires only on no-signal</p></div>
+      <div class="box app"><b>Personalization + Catalog</b><span class="file">personalization.ts · catalog.ts</span><p>Select context, resolve snippets</p></div>
+      <div class="box app"><b>Prompt + Confidence</b><span class="file">prompt.ts · confidence.ts</span><p>Optimized prompt; min(coverage, self)</p></div>
+      <div class="box app"><b>Alert engine <span class="pill new">NEW</span></b><span class="file">alert.ts</span><p>Phase (start/mid/end) + tone-safe prompt</p></div>
+    </div>
+  </div>
+  <div class="arrow">↓ depends on interfaces only ↓</div>
+
+  <!-- PORTS -->
+  <div class="layer">
+    <div class="lh">Ports (I/O boundaries) — swappable adapters</div>
+    <div class="row">
+      <div class="box port"><b>ServiceGateway</b><span class="file">gateway.ts</span><p>+ ResilientGateway decorator: cache · bounded retry · timeout</p></div>
+      <div class="box port"><b>LlmProvider</b><span class="file">provider.ts</span><p>+ CachingLlmProvider decorator <span class="pill new">NEW</span>: response cache by prompt hash</p></div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+
+  <!-- EXTERNAL -->
+  <div class="row">
+    <div class="layer" style="flex:1">
+      <div class="lh">Upstream Services (mock ⇄ HTTP)</div>
+      <div class="row">
+        <div class="box ext"><b>User</b><p>profile, language, tier</p></div>
+        <div class="box ext"><b>Kundli</b><p>houses, dasha, moon sign</p></div>
+        <div class="box ext"><b>Horoscope</b><p>career/finance/health/rel</p></div>
+        <div class="box ext"><b>Panchang</b><p>daily, shared by date</p></div>
+      </div>
+    </div>
+    <div class="layer" style="flex:1">
+      <div class="lh">LLM (mock ⇄ Ollama ⇄ Anthropic)</div>
+      <div class="row">
+        <div class="box ext"><b>LLM inference</b><p>answer generation · intent classification · alert humanization. Pay-per-token — the cost/latency bottleneck.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFRA -->
+  <div class="layer">
+    <div class="lh">Data / Infra</div>
+    <div class="row">
+      <div class="box infra"><b>Cache</b><span class="file">cache.ts (interface)</span><p>In-memory now → Redis at scale (drop-in). Keys: user/kundli/horoscope per id; panchang per date; LLM by prompt hash</p></div>
+      <div class="box infra"><b>Observability</b><span class="file">logger.ts</span><p>Structured per-request logs: intent, latencies, tokens, cache hit/miss, confidence → traces + evals at scale</p></div>
+      <div class="box infra"><b>Config</b><span class="file">env.ts</span><p>Composition root wires adapters (app.ts)</p></div>
+    </div>
+  </div>
+
+  <!-- CROSS CUTTING -->
+  <div class="layer">
+    <div class="lh">Cross-cutting concerns</div>
+    <div class="cc">
+      <span>Fault tolerance — failure degrades, never 500s</span>
+      <span>Grounding — answer only from context</span>
+      <span>Confidence — honest, min of two signals</span>
+      <span>Cost control — trim + cache + tier</span>
+      <span>Multilingual — English keyword, LLM for the rest</span>
+    </div>
+  </div>
+
+  <!-- SCALE -->
+  <div class="scale">
+    <b>Scaling to 10M MAU (bottlenecks in order):</b>
+    <ul>
+      <li><b>App tier</b> — already stateless → scale flat behind the load balancer.</li>
+      <li><b>Cache</b> — in-memory → Redis via the Cache interface. Panchang-by-date serves everyone; shields upstreams.</li>
+      <li><b>LLM (the real cost)</b> — response caching, per-tier model routing, streaming, token budgets.</li>
+      <li><b>Protect</b> — per-service circuit breakers, per-user rate limiting, idempotency keys, queues for async (e.g. alert fan-out).</li>
+      <li><b>Observe</b> — OpenTelemetry tracing across the fan-out + a CI eval harness so answer quality can't silently regress.</li>
+      <li><b>Don't build yet</b> — vector retrieval (keyword + config is enough at this catalog size).</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+
+# --- Personal interview-prep / process notes — keep PRIVATE, never publish ---
+INTERVIEW_PREP.md
+QA_BANK.md
+CTO_ROUND_ROADMAP.md
+ROUND2_PREP.md
+followup-email.md
+LEARN.md
+LLM_ROADMAP.md
+LLM-WORK-EXPLAINED.md
+llm-features.md
+CODE_CHANGES.md
+ROADMAP.md
+interview-qa.html
+flowchart.html
+system-design-animated.html
+capture-gif.mjs
+make-pdf.mjs
